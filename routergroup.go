@@ -40,6 +40,7 @@ type IRoutes interface {
 // a prefix and an array of handlers (middleware).
 type RouterGroup struct {
 	Handlers HandlersChain
+	WrapperHandler WrapperFunc
 	basePath string
 	engine   *Engine
 	root     bool
@@ -50,6 +51,11 @@ var _ IRouter = &RouterGroup{}
 // Use adds middleware to the group, see example code in GitHub.
 func (group *RouterGroup) Use(middleware ...HandlerFunc) IRoutes {
 	group.Handlers = append(group.Handlers, middleware...)
+	return group.returnObj()
+}
+
+func (group *RouterGroup) Wrapper(wrapperFunc WrapperFunc) IRoutes {
+	group.WrapperHandler = wrapperFunc
 	return group.returnObj()
 }
 
@@ -70,6 +76,14 @@ func (group *RouterGroup) BasePath() string {
 }
 
 func (group *RouterGroup) handle(httpMethod, relativePath string, handlers HandlersChain) IRoutes {
+	if group.WrapperHandler != nil {
+		temp := make(HandlersChain,0)
+		for _ ,item := range handlers {
+			temp = append(temp,group.WrapperHandler(item))
+		}
+		handlers = temp
+	}
+
 	absolutePath := group.calculateAbsolutePath(relativePath)
 	handlers = group.combineHandlers(handlers)
 	group.engine.addRoute(httpMethod, absolutePath, handlers)
