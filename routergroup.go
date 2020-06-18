@@ -47,6 +47,7 @@ type RouterGroup struct {
 }
 
 var _ IRouter = &RouterGroup{}
+var _ IRoutes = &RouterGroup{}
 
 // Use adds middleware to the group, see example code in GitHub.
 func (group *RouterGroup) Use(middleware ...HandlerFunc) IRoutes {
@@ -55,8 +56,16 @@ func (group *RouterGroup) Use(middleware ...HandlerFunc) IRoutes {
 }
 
 func (group *RouterGroup) Wrapper(wrapperFunc WrapperFunc) IRoutes {
-	group.WrapperHandler = wrapperFunc
-	return group.returnObj()
+	this := group.returnObj()
+	switch this.(type) {
+	case *RouterGroup:
+		this.(*RouterGroup).WrapperHandler = wrapperFunc
+	case *Engine:
+		this.(*Engine).WrapperHandler = wrapperFunc
+	default:
+		panic("type cast error")
+	}
+	return this
 }
 
 // Group creates a new router group. You should add all the routes that have common middlewares or the same path prefix.
@@ -163,8 +172,9 @@ func (group *RouterGroup) StaticFile(relativePath, filepath string) IRoutes {
 	if strings.Contains(relativePath, ":") || strings.Contains(relativePath, "*") {
 		panic("URL parameters can not be used when serving a static file")
 	}
-	handler := func(c *Context) {
+	handler := func(c *Context) interface{} {
 		c.File(filepath)
+		return nil
 	}
 	group.GET(relativePath, handler)
 	group.HEAD(relativePath, handler)
@@ -200,7 +210,7 @@ func (group *RouterGroup) createStaticHandler(relativePath string, fs http.FileS
 	absolutePath := group.calculateAbsolutePath(relativePath)
 	fileServer := http.StripPrefix(absolutePath, http.FileServer(fs))
 
-	return func(c *Context) {
+	return func(c *Context) interface{} {
 		if _, noListing := fs.(*onlyFilesFS); noListing {
 			c.Writer.WriteHeader(http.StatusNotFound)
 		}
@@ -213,11 +223,12 @@ func (group *RouterGroup) createStaticHandler(relativePath string, fs http.FileS
 			c.handlers = group.engine.noRoute
 			// Reset index
 			c.index = -1
-			return
+			return nil
 		}
 		f.Close()
 
 		fileServer.ServeHTTP(c.Writer, c.Request)
+		return nil
 	}
 }
 
@@ -236,6 +247,8 @@ func (group *RouterGroup) calculateAbsolutePath(relativePath string) string {
 	return joinPaths(group.basePath, relativePath)
 }
 
+
+// IRoutes real val is long point
 func (group *RouterGroup) returnObj() IRoutes {
 	if group.root {
 		return group.engine

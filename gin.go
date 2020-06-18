@@ -27,7 +27,7 @@ var (
 var defaultAppEngine bool
 
 // HandlerFunc defines the handler used by gin middleware as return value.
-type HandlerFunc func(*Context)
+type HandlerFunc func( *Context) interface{}
 
 type WrapperFunc func(handlerFunc HandlerFunc) HandlerFunc
 

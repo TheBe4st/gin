@@ -78,6 +78,8 @@ type Context struct {
 	// SameSite allows a server to define a cookie attribute making it impossible for
 	// the browser to send this cookie along with cross-site requests.
 	sameSite http.SameSite
+
+	retObj interface{}
 }
 
 /************************************/
@@ -162,8 +164,11 @@ func (c *Context) FullPath() string {
 func (c *Context) Next() {
 	c.index++
 	for c.index < int8(len(c.handlers)) {
-		c.handlers[c.index](c)
+		c.retObj = c.handlers[c.index](c)
 		c.index++
+	}
+	if c.retObj != nil {
+		c.JSON(200,c.retObj)
 	}
 }
 
