@@ -164,7 +164,9 @@ func (c *Context) FullPath() string {
 func (c *Context) Next() {
 	c.index++
 	for c.index < int8(len(c.handlers)) {
-		c.retObj = c.handlers[c.index](c)
+		if temp := c.handlers[c.index](c); temp != nil {
+			c.retObj = temp
+		}
 		c.index++
 	}
 	if c.retObj != nil {
